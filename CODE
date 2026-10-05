@@ -1,0 +1,107 @@
+// 600 Litre Water Tank
+// HC-SR04 + 16x2 LCD + Water Pump
+
+#include <LiquidCrystal.h>
+
+// LCD: RS, EN, D4, D5, D6, D7
+LiquidCrystal lcd(2, 3, 4, 5, 6, 7);
+
+// Ultrasonic sensor pins
+#define TRIG_PIN 9
+#define ECHO_PIN 10
+
+// Water pump control
+#define PUMP_PIN 11
+
+// Tank depth in cm
+#define TANK_DEPTH 334
+
+long duration;
+float distance;
+int level;
+
+long UltrasonicDistance(int trigPin, int echoPin)
+{
+  // Send ultrasonic trigger pulse
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+
+  digitalWrite(trigPin, LOW);
+
+  // Read echo
+  return pulseIn(echoPin, HIGH, 30000);
+}
+
+void setup()
+{
+  Serial.begin(9600);
+
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+
+  pinMode(PUMP_PIN, OUTPUT);
+
+  lcd.begin(16, 2);
+  lcd.clear();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Water Level (%)");
+
+  delay(1000);
+}
+
+void loop()
+{
+  // Get ultrasonic echo duration
+  duration = UltrasonicDistance(TRIG_PIN, ECHO_PIN);
+
+  // Convert time to distance in cm
+  distance = 0.01723 * duration;
+
+  // Convert distance to water level percentage
+  // Tank empty = 334 cm
+  // Tank full  = 0 cm
+  level = map((int)distance, TANK_DEPTH, 0, 0, 100);
+
+  // Keep level between 0 and 100
+  level = constrain(level, 0, 100);
+
+  // Display on LCD
+  lcd.setCursor(0, 1);
+  lcd.print("                ");
+
+  lcd.setCursor(0, 1);
+  lcd.print(level);
+  lcd.print("%");
+
+  // Display distance in Serial Monitor
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.print(" cm | Water Level: ");
+  Serial.print(level);
+  Serial.println("%");
+
+  // Pump control
+  // 99% or more -> Pump OFF
+  if (level >= 99)
+  {
+    analogWrite(PUMP_PIN, 0);
+  }
+
+  // Below 95% -> Pump ON
+  else if (level < 95)
+  {
+    analogWrite(PUMP_PIN, 10);
+  }
+
+  // 95% to 98% -> Pump OFF for safety
+  else
+  {
+    analogWrite(PUMP_PIN, 0);
+  }
+
+  delay(500);
+}
